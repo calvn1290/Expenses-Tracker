@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="CFO Tracker">
+<meta name="theme-color" content="#0E6B4F">
+<title>CFO Daily Tracker</title>
+<style>
+  :root{
+    --bg:#F4F6F5; --card:#FFFFFF; --ink:#16241F; --muted:#5E6E67;
+    --green:#0E6B4F; --green-soft:#E4F0EA; --red:#B3402A; --red-soft:#F7E7E2;
+    --amber:#9A6B15; --amber-soft:#F5EBD8; --line:#DCE2DE;
+    --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);padding:16px;padding-top:max(16px,env(safe-area-inset-top));max-width:560px;margin:0 auto;-webkit-font-smoothing:antialiased}
+  h1{font-size:15px;letter-spacing:.12em;text-transform:uppercase;font-weight:700}
+  .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+  .sub{font-size:12px;color:var(--muted)}
+  .monthnav{display:flex;align-items:center;gap:8px;margin:10px 0 14px}
+  .monthnav button{border:1px solid var(--line);background:var(--card);border-radius:8px;width:32px;height:32px;font-size:16px;cursor:pointer;color:var(--ink)}
+  .monthnav .mlabel{font-family:var(--mono);font-size:14px;font-weight:600;flex:1;text-align:center}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+  .lbl{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .big{font-family:var(--mono);font-size:30px;font-weight:700;margin:4px 0 2px}
+  .big small{font-size:15px;color:var(--muted);font-weight:500}
+  .bar{position:relative;height:22px;border-radius:6px;background:var(--green-soft);overflow:hidden;margin-top:10px}
+  .bar .fill{position:absolute;left:0;top:0;bottom:0;background:var(--green);border-radius:6px 0 0 6px;transition:width .4s ease}
+  .bar.over .fill{background:var(--red)}
+  .bar.drift .fill{background:var(--amber)}
+  .tick{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--ink)}
+  .tickwrap{position:relative;height:0}
+  .ticklbl{position:absolute;transform:translateX(-50%);font-size:10px;font-family:var(--mono);color:var(--muted);top:26px;white-space:nowrap}
+  .barmeta{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:20px}
+  .status{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:6px}
+  .status.ok{background:var(--green-soft);color:var(--green)}
+  .status.drift{background:var(--amber-soft);color:var(--amber)}
+  .status.over{background:var(--red-soft);color:var(--red)}
+  .chatrow{display:flex;gap:8px;margin-top:8px}
+  #chatIn{flex:1;font-family:var(--sans);font-size:16px;border:1px solid var(--line);border-radius:999px;padding:12px 16px;background:#fff;color:var(--ink)}
+  #chatIn:focus{outline:2px solid var(--green);border-color:var(--green)}
+  #chatGo{border:none;border-radius:999px;background:var(--green);color:#fff;font-weight:700;font-size:14px;padding:0 18px;cursor:pointer;min-width:64px}
+  #chatGo:disabled{opacity:.5}
+  #chatEcho{font-size:13px;margin-top:10px;display:none;background:var(--green-soft);border-radius:8px;padding:10px 12px;line-height:1.5}
+  #chatEcho.err{background:var(--red-soft)}
+  .hint{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5}
+  .fx{display:flex;align-items:baseline;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px;color:var(--muted)}
+  .fx:last-child{border-bottom:none}
+  .fx .amt{margin-left:auto;font-family:var(--mono);font-weight:600;color:var(--ink)}
+  .tx{display:flex;align-items:baseline;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+  .tx:last-child{border-bottom:none}
+  .tx .d{font-family:var(--mono);font-size:12px;color:var(--muted);min-width:44px}
+  .tx .c{color:var(--muted);font-size:12px}
+  .tx .a{margin-left:auto;font-family:var(--mono);font-weight:600}
+  .tx .del{background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:0 2px}
+  .empty{color:var(--muted);font-size:13px;padding:8px 0}
+  .totrow{display:flex;justify-content:space-between;font-size:13px;padding:4px 0}
+  .totrow .v{font-family:var(--mono);font-weight:600}
+  .totrow.hl{border-top:1px solid var(--line);margin-top:6px;padding-top:8px;font-weight:700}
+  .btn{border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;width:100%}
+  .btn.primary{background:var(--green);color:#fff}
+  .btn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
+  .btn:disabled{opacity:.5;cursor:default}
+  #verdict{white-space:pre-wrap;font-size:14px;line-height:1.5;background:var(--green-soft);border-radius:8px;padding:12px;margin-top:10px;display:none}
+  #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;display:none;z-index:9;max-width:90%}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+  details summary{font-size:12px;color:var(--muted);cursor:pointer;margin-top:10px}
+  .row{display:flex;gap:8px;margin-top:8px}
+  input[type=number],input[type=date],input[type=text],select,textarea{font-family:var(--sans);font-size:16px;border:1px solid var(--line);border-radius:8px;padding:10px;background:#fff;color:var(--ink);width:100%}
+  textarea{font-family:var(--mono);font-size:12px;min-height:80px}
+  .modebadge{font-size:10px;letter-spacing:.08em;text-transform:uppercase;background:var(--green-soft);color:var(--green);border-radius:5px;padding:2px 7px;font-weight:700}
+  @media (prefers-reduced-motion: reduce){.bar .fill{transition:none}}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <h1>CFO Daily Tracker</h1>
+  <span class="modebadge" id="modeBadge">…</span>
+</div>
+<div class="sub">Discretionary $1,891/mo · Fixed lines $4,928/mo auto-counted · Baseline $6,819/mo</div>
+
+<div class="monthnav">
+  <button id="prevM" aria-label="Previous month">‹</button>
+  <div class="mlabel" id="mlabel"></div>
+  <button id="nextM" aria-label="Next month">›</button>
+</div>
+
+<!-- ENTRY -->
+<div class="card">
+  <span class="lbl">Tell me what you spent</span>
+  <div class="chatrow">
+    <input id="chatIn" type="text" placeholder="e.g. lunch 12.50, grab home 18" autocomplete="off">
+    <button id="chatGo">Log</button>
+  </div>
+  <div id="chatEcho"></div>
+  <div class="hint" id="entryHint">Type it like a text message — one or several expenses at once. Say "yesterday" if it wasn't today.</div>
+  <details>
+    <summary>Manual entry</summary>
+    <div class="row">
+      <input id="mAmt" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
+      <input id="mDate" type="date" style="max-width:150px">
+    </div>
+    <div class="row">
+      <select id="mCat"></select>
+      <input id="mNote" type="text" placeholder="Note">
+    </div>
+    <div class="row"><button class="btn ghost" id="mAdd">Add manually</button></div>
+  </details>
+</div>
+
+<!-- PACE BAR -->
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <span class="lbl">Discretionary spend (credit-card line)</span>
+    <span class="status ok" id="statusBadge">on track</span>
+  </div>
+  <div class="big" id="spentBig">$0 <small>/ $1,891</small></div>
+  <div class="bar" id="paceBar"><div class="fill" id="paceFill" style="width:0%"></div><div class="tick" id="paceTick" style="left:0%"></div></div>
+  <div class="tickwrap"><span class="ticklbl" id="tickLbl" style="left:0%">pace today</span></div>
+  <div class="barmeta"><span id="paceLeft"></span><span id="paceRight"></span></div>
+</div>
+
+<!-- MONTH TOTALS -->
+<div class="card">
+  <span class="lbl">Month picture</span>
+  <div id="totals" style="margin-top:6px"></div>
+  <details>
+    <summary>Fixed lines (auto-counted, no input needed)</summary>
+    <div id="fixedList" style="margin-top:4px"></div>
+  </details>
+</div>
+
+<!-- TRANSACTIONS -->
+<div class="card">
+  <span class="lbl">Transactions</span>
+  <div id="txList" style="margin-top:6px"></div>
+</div>
+
+<!-- CLAUDE LINK -->
+<div class="card">
+  <span class="lbl">Link to Claude</span>
+  <div class="two">
+    <button class="btn primary" id="copyBtn">Copy audit report</button>
+    <button class="btn ghost" id="openClaude">Open Claude</button>
+  </div>
+  <button class="btn primary" id="askBtn" style="margin-top:8px;display:none">Quick verdict (in-app AI)</button>
+  <div id="verdict"></div>
+  <div class="hint">Copy the report, then open Claude and paste it into the Personal CFO project chat for the weekly check or monthly audit. The project chat is the permanent record.</div>
+  <details>
+    <summary>Backup: export / import data</summary>
+    <div class="hint">Records live on this device. To move history to another device (or keep a backup), copy the export text and paste it into the other device's import box.</div>
+    <div class="row"><button class="btn ghost" id="expBtn">Export all months</button></div>
+    <div class="row"><textarea id="impBox" placeholder="Paste exported data here"></textarea></div>
+    <div class="row"><button class="btn ghost" id="impBtn">Import</button></div>
+  </details>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const CATS = ["Food & drinks","Groceries","Transport","Shopping","Entertainment","Health","Travel","Other"];
+const FIXED = [
+  {name:"Car + Helper + Household", amt:2400},
+  {name:"Property loan A", amt:647},
+  {name:"Property remittance B", amt:545},
+  {name:"Income tax GIRO", amt:878},
+  {name:"Utilities / gym", amt:258},
+  {name:"Insurance fund", amt:200},
+];
+const FIXED_TOTAL = 4928, CC_BUDGET = 1891, TOTAL_BUDGET = 6819, SALARY = 9747, SURPLUS_TARGET = 2928;
+const KEY_PREFIX = "cfo-month:";
+
+let viewYM = ymNow();
+let data = { tx: [] };
+let lastAddedIds = [];
+
+const $ = id => document.getElementById(id);
+const fmt = n => "$" + n.toLocaleString("en-SG",{minimumFractionDigits:0,maximumFractionDigits:2});
+
+function ymNow(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
+function todayISO(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function ymLabel(ym){ const [y,m]=ym.split("-"); return new Date(y,m-1,1).toLocaleString("en-SG",{month:"long",year:"numeric"}); }
+function shiftYM(ym,delta){ let [y,m]=ym.split("-").map(Number); m+=delta; if(m<1){m=12;y--;} if(m>12){m=1;y++;} return y+"-"+String(m).padStart(2,"0"); }
+function daysInYM(ym){ const [y,m]=ym.split("-").map(Number); return new Date(y,m,0).getDate(); }
+function isCurrentMonth(){ return viewYM===ymNow(); }
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.style.display="block"; setTimeout(()=>t.style.display="none",2600); }
+
+// ---------- DUAL-MODE STORAGE ----------
+// Inside Claude artifacts: window.storage (account-scoped).
+// As a standalone home-screen app: device localStorage.
+const IN_CLAUDE = !!(window.storage && typeof window.storage.get === "function");
+
+async function kvGet(key){
+  if(IN_CLAUDE){
+    try{ const r = await window.storage.get(key); return r ? r.value : null; }
+    catch(e){ return null; }
+  }
+  try{ return localStorage.getItem(key); }catch(e){ return null; }
+}
+async function kvSet(key, value){
+  if(IN_CLAUDE){
+    try{ const r = await window.storage.set(key, value); return !!r; }
+    catch(e){ return false; }
+  }
+  try{ localStorage.setItem(key, value); return true; }catch(e){ return false; }
+}
+async function kvListMonths(){
+  if(IN_CLAUDE){
+    try{ const r = await window.storage.list(KEY_PREFIX); return (r && r.keys) ? r.keys : []; }
+    catch(e){ return []; }
+  }
+  try{
+    const out=[]; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k && k.startsWith(KEY_PREFIX)) out.push(k); }
+    return out;
+  }catch(e){ return []; }
+}
+
+async function loadMonth(ym){
+  const raw = await kvGet(KEY_PREFIX+ym);
+  try{ data = raw ? JSON.parse(raw) : {tx:[]}; }catch(e){ data = {tx:[]}; }
+  if(!data.tx) data.tx=[];
+}
+async function saveMonthFor(ym, monthData){
+  const ok = await kvSet(KEY_PREFIX+ym, JSON.stringify(monthData));
+  if(!ok) toast("Save failed — try again");
+  return ok;
+}
+async function saveMonth(){ return saveMonthFor(viewYM, data); }
+
+async function addExpenses(items){
+  const byYM = {};
+  items.forEach(it=>{ const ym = it.d.slice(0,7); (byYM[ym]=byYM[ym]||[]).push(it); });
+  lastAddedIds = items.map(i=>i.id);
+  for(const ym of Object.keys(byYM)){
+    if(ym===viewYM){ data.tx.push(...byYM[ym]); await saveMonth(); }
+    else{
+      const raw = await kvGet(KEY_PREFIX+ym);
+      let md={tx:[]}; try{ md = raw?JSON.parse(raw):{tx:[]}; }catch(e){}
+      if(!md.tx) md.tx=[];
+      md.tx.push(...byYM[ym]);
+      await saveMonthFor(ym, md);
+    }
+  }
+  render();
+}
+async function undoLast(){
+  if(!lastAddedIds.length) return;
+  data.tx = data.tx.filter(t=>!lastAddedIds.includes(t.id));
+  await saveMonth();
+  lastAddedIds=[]; render(); toast("Undone");
+  $("chatEcho").style.display="none";
+}
+
+// ---------- PARSING ----------
+function localParse(text){
+  const parts = text.split(/,| and /i).map(s=>s.trim()).filter(Boolean);
+  const out=[];
+  for(const p of parts){
+    const m = p.match(/(\d+(?:\.\d{1,2})?)/);
+    if(!m) continue;
+    const amt = parseFloat(m[1]);
+    if(!amt || amt<=0) continue;
+    let note = p.replace(m[1],"").replace(/\$|sgd/ig,"").trim();
+    let cat = "Other";
+    const n = note.toLowerCase();
+    if(/lunch|dinner|breakfast|brunch|coffee|kopi|tea|food|hawker|restaurant|cafe|makan|bubble|drink|supper|snack/.test(n)) cat="Food & drinks";
+    else if(/grab|taxi|mrt|bus|transport|gojek|petrol|parking|erp|comfort|tada/.test(n)) cat="Transport";
+    else if(/ntuc|fairprice|grocer|supermarket|market|cold storage|sheng siong|giant|don don/.test(n)) cat="Groceries";
+    else if(/movie|netflix|spotify|game|concert|bar|ktv|show/.test(n)) cat="Entertainment";
+    else if(/doctor|clinic|pharmacy|guardian|watson|medicine|dental|tcm/.test(n)) cat="Health";
+    else if(/shop|clothes|shoe|uniqlo|amazon|shopee|lazada|taobao|gift/.test(n)) cat="Shopping";
+    else if(/flight|hotel|airbnb|travel|visa fee/.test(n)) cat="Travel";
+    let d = todayISO();
+    if(/yesterday/i.test(p)){ const dd=new Date(); dd.setDate(dd.getDate()-1);
+      d = dd.getFullYear()+"-"+String(dd.getMonth()+1).padStart(2,"0")+"-"+String(dd.getDate()).padStart(2,"0");
+      note=note.replace(/yesterday/i,"").trim(); }
+    const dm = p.match(/(\d{4}-\d{2}-\d{2})/);
+    if(dm){ d = dm[1]; note = note.replace(dm[1],"").trim(); }
+    out.push({id:Date.now()+Math.random(), d, amt, cat, note});
+  }
+  return out;
+}
+
+async function aiParse(text){
+  const resp = await fetch("https://api.anthropic.com/v1/messages",{
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({
+      model:"claude-sonnet-4-6", max_tokens:1000,
+      messages:[{role:"user",content:
+`Parse this expense message into JSON. Today is ${todayISO()} (Singapore). Categories allowed: ${CATS.join(", ")}.
+Respond ONLY with a JSON array, no markdown fences, no prose. Each item: {"amount": number (SGD), "category": one allowed category, "note": short string, "date": "YYYY-MM-DD"}.
+Resolve relative dates like "yesterday" against today. Default date is today. If nothing parseable, respond [].
+
+Message: ${text}`}]
+    })
+  });
+  const dj = await resp.json();
+  const raw = (dj.content||[]).map(i=>i.type==="text"?i.text:"").join("").replace(/```json|```/g,"").trim();
+  const arr = JSON.parse(raw);
+  return arr.filter(x=>x && x.amount>0).map(x=>({
+    id: Date.now()+Math.random(),
+    d: /^\d{4}-\d{2}-\d{2}$/.test(x.date||"") ? x.date : todayISO(),
+    amt: Math.round(x.amount*100)/100,
+    cat: CATS.includes(x.category) ? x.category : "Other",
+    note: (x.note||"").slice(0,60)
+  }));
+}
+
+async function handleChat(){
+  const text = $("chatIn").value.trim();
+  if(!text) return;
+  const btn=$("chatGo"), echo=$("chatEcho");
+  btn.disabled=true; btn.textContent="…";
+  echo.className=""; echo.style.display="block"; echo.textContent="Reading that…";
+  let items=[];
+  if(IN_CLAUDE){ try{ items = await aiParse(text); }catch(e){ items = localParse(text); } }
+  else{ items = localParse(text); }
+  if(!items.length){
+    echo.className="err"; echo.textContent="Couldn't find an amount. Try like: coffee 6.50, grab 18 — or use Manual entry below.";
+  }else{
+    await addExpenses(items);
+    const total = items.reduce((s,i)=>s+i.amt,0);
+    echo.innerHTML = "Logged " + items.map(i=>`<b>${fmt(i.amt)}</b> ${i.note||i.cat} <span style="color:var(--muted)">(${i.cat}${i.d!==todayISO()?", "+i.d:""})</span>`).join(" · ")
+      + ` — total ${fmt(total)}. <a href="#" id="undoLink" style="color:var(--red)">Undo</a>`;
+    document.getElementById("undoLink").addEventListener("click",e=>{e.preventDefault();undoLast();});
+    $("chatIn").value="";
+  }
+  btn.disabled=false; btn.textContent="Log";
+}
+$("chatGo").addEventListener("click",handleChat);
+$("chatIn").addEventListener("keydown",e=>{ if(e.key==="Enter") handleChat(); });
+
+// ---------- RENDER ----------
+function discSpent(){ return data.tx.reduce((s,t)=>s+t.amt,0); }
+
+function render(){
+  $("mlabel").textContent = ymLabel(viewYM);
+  $("nextM").disabled = viewYM >= ymNow();
+
+  const spent = discSpent();
+  const dim = daysInYM(viewYM);
+  const day = isCurrentMonth() ? new Date().getDate() : dim;
+  const expected = CC_BUDGET * day / dim;
+  const pctSpent = Math.min(100, spent/CC_BUDGET*100);
+  const pctPace  = Math.min(100, expected/CC_BUDGET*100);
+  $("spentBig").innerHTML = fmt(spent)+' <small>/ $1,891</small>';
+  $("paceFill").style.width = pctSpent+"%";
+  $("paceTick").style.left = pctPace+"%";
+  $("tickLbl").style.left = Math.min(92,Math.max(8,pctPace))+"%";
+  $("tickLbl").textContent = "pace day "+day+": "+fmt(Math.round(expected));
+  $("paceLeft").textContent = fmt(Math.max(0,CC_BUDGET-spent))+" left";
+  $("paceRight").textContent = (spent/CC_BUDGET*100).toFixed(0)+"% used, "+(day/dim*100).toFixed(0)+"% of month";
+
+  const bar=$("paceBar"), badge=$("statusBadge");
+  let cls="ok", label="on track";
+  if(spent > CC_BUDGET || spent > expected*1.2){ cls="over"; label="overspent"; }
+  else if(spent > expected*1.05){ cls="drift"; label="drifting"; }
+  bar.className = "bar"+(cls==="ok"?"":" "+cls);
+  badge.className = "status "+cls; badge.textContent = label;
+
+  $("fixedList").innerHTML = FIXED.map(f=>`
+    <div class="fx"><span>${f.name}</span><span class="amt">${fmt(f.amt)}</span></div>`).join("")
+    + `<div class="fx" style="font-weight:700;color:var(--ink)"><span>Fixed total</span><span class="amt">${fmt(FIXED_TOTAL)}</span></div>`;
+
+  const totalSpent = FIXED_TOTAL + spent;
+  const projDisc = isCurrentMonth() ? Math.max(spent, spent/Math.max(day,1)*dim) : spent;
+  const proj = FIXED_TOTAL + projDisc;
+  $("totals").innerHTML = `
+    <div class="totrow"><span>Fixed lines (committed)</span><span class="v">${fmt(FIXED_TOTAL)}</span></div>
+    <div class="totrow"><span>Discretionary so far</span><span class="v">${fmt(spent)} / ${fmt(CC_BUDGET)}</span></div>
+    <div class="totrow hl"><span>Total vs $6,819 baseline</span><span class="v">${fmt(totalSpent)}</span></div>
+    <div class="totrow"><span>Projected month total</span><span class="v">${fmt(Math.round(proj))}</span></div>
+    <div class="totrow"><span>Projected surplus (target $2,928)</span><span class="v">${fmt(Math.round(SALARY-proj))}</span></div>`;
+
+  const list = [...data.tx].sort((a,b)=> b.d.localeCompare(a.d) || b.id-a.id);
+  $("txList").innerHTML = list.length ? list.map(t=>`
+    <div class="tx"><span class="d">${t.d.slice(8)}/${t.d.slice(5,7)}</span>
+      <span>${t.note?t.note:t.cat}</span><span class="c">${t.note?t.cat:""}</span>
+      <span class="a">${fmt(t.amt)}</span>
+      <button class="del" data-del="${t.id}" aria-label="Delete">✕</button></div>`).join("")
+    : `<div class="empty">Nothing logged this month. Type your first expense above.</div>`;
+  document.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async e=>{
+    data.tx = data.tx.filter(t=>t.id!=e.target.dataset.del); await saveMonth(); render();
+  }));
+}
+
+// ---------- MANUAL ----------
+$("mCat").innerHTML = CATS.map(c=>`<option>${c}</option>`).join("");
+$("mAdd").addEventListener("click", async ()=>{
+  const amt = parseFloat($("mAmt").value);
+  if(!amt || amt<=0){ toast("Enter an amount"); return; }
+  const d = $("mDate").value || todayISO();
+  await addExpenses([{id:Date.now(), d, amt, cat:$("mCat").value, note:$("mNote").value.trim()}]);
+  $("mAmt").value=""; $("mNote").value="";
+  toast("Added "+fmt(amt));
+});
+
+// ---------- MONTH NAV ----------
+$("prevM").addEventListener("click", async ()=>{ viewYM=shiftYM(viewYM,-1); await loadMonth(viewYM); render(); });
+$("nextM").addEventListener("click", async ()=>{ if(viewYM<ymNow()){ viewYM=shiftYM(viewYM,1); await loadMonth(viewYM); render(); } });
+
+// ---------- REPORT / CLAUDE LINK ----------
+function buildReport(){
+  const spent=discSpent(), dim=daysInYM(viewYM), day=isCurrentMonth()?new Date().getDate():dim;
+  const byCat={}; data.tx.forEach(t=>byCat[t.cat]=(byCat[t.cat]||0)+t.amt);
+  let r = "WEEKLY/MONTHLY AUDIT INPUT — "+ymLabel(viewYM)+" (day "+day+"/"+dim+")\n";
+  r += "Discretionary (credit-card line): "+fmt(spent)+" of $1,891 (pace at day "+day+": "+fmt(Math.round(CC_BUDGET*day/dim))+")\n";
+  r += "By category: "+(Object.keys(byCat).map(c=>c+" "+fmt(byCat[c])).join(", ")||"none")+"\n";
+  r += "Fixed lines: auto-counted $4,928 committed (Car+Helper+Household 2400, Loan A 647, Remittance B 545, tax 878, utilities 258, insurance 200)\n";
+  r += "Transactions:\n"+(data.tx.map(t=>t.d+" | "+t.cat+" | "+fmt(t.amt)+(t.note?" | "+t.note:"")).join("\n")||"(none)");
+  return r;
+}
+async function copyText(txt){
+  try{ await navigator.clipboard.writeText(txt); return true; }
+  catch(e){
+    const ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta);
+    ta.select(); try{ document.execCommand("copy"); }catch(_){} ta.remove(); return true;
+  }
+}
+$("copyBtn").addEventListener("click", async ()=>{
+  await copyText(buildReport());
+  toast("Report copied — open Claude and paste it in your CFO project");
+});
+$("openClaude").addEventListener("click", ()=>{ window.open("https://claude.ai","_blank"); });
+
+$("askBtn").addEventListener("click", async ()=>{
+  const btn=$("askBtn"), v=$("verdict");
+  btn.disabled=true; btn.textContent="Thinking…"; v.style.display="block"; v.textContent="Running the numbers…";
+  try{
+    const resp = await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        model:"claude-sonnet-4-6", max_tokens:1000,
+        messages:[{role:"user",content:
+`You are a blunt personal CFO doing a weekly quick check. Baseline: discretionary budget $1,891/month (credit-card line), fixed committed lines $4,928/month, total baseline $6,819, salary $9,747 net, surplus target $2,928. Respond in EXACTLY 3 short lines, plain text, no markdown:
+1) Month-to-date discretionary spend vs pace.
+2) Total month picture vs $6,819 baseline and projected surplus.
+3) Verdict: ON TRACK / DRIFTING / OVERSPENT, plus one specific action.
+
+Data:
+${buildReport()}`}]
+      })
+    });
+    const dj = await resp.json();
+    const text = (dj.content||[]).map(i=>i.type==="text"?i.text:"").join("").trim();
+    v.textContent = text || "No response — try again.";
+  }catch(e){ v.textContent="Could not reach Claude — check your connection and try again."; }
+  btn.disabled=false; btn.textContent="Quick verdict (in-app AI)";
+});
+
+// ---------- EXPORT / IMPORT ----------
+$("expBtn").addEventListener("click", async ()=>{
+  const keys = await kvListMonths();
+  const dump = {};
+  for(const k of keys){ const v = await kvGet(k); if(v) dump[k]=v; }
+  // ensure current month included even if list missed it
+  dump[KEY_PREFIX+viewYM] = JSON.stringify(data);
+  await copyText("CFO-TRACKER-BACKUP:"+JSON.stringify(dump));
+  toast("Backup copied — paste into Notes or another device's import box");
+});
+$("impBtn").addEventListener("click", async ()=>{
+  let raw = $("impBox").value.trim();
+  if(!raw){ toast("Paste a backup first"); return; }
+  raw = raw.replace(/^CFO-TRACKER-BACKUP:/,"");
+  try{
+    const dump = JSON.parse(raw);
+    let count=0;
+    for(const k of Object.keys(dump)){
+      if(!k.startsWith(KEY_PREFIX)) continue;
+      // merge: existing + imported, dedupe by id
+      const existingRaw = await kvGet(k);
+      let existing={tx:[]}; try{ existing = existingRaw?JSON.parse(existingRaw):{tx:[]}; }catch(e){}
+      let incoming={tx:[]}; try{ incoming = JSON.parse(dump[k]); }catch(e){}
+      const ids = new Set((existing.tx||[]).map(t=>t.id));
+      const merged = {tx:[...(existing.tx||[]), ...((incoming.tx||[]).filter(t=>!ids.has(t.id)))]};
+      await kvSet(k, JSON.stringify(merged));
+      count += (incoming.tx||[]).length;
+    }
+    await loadMonth(viewYM); render();
+    $("impBox").value="";
+    toast("Imported "+count+" entries (merged, no duplicates)");
+  }catch(e){ toast("Import failed — that doesn't look like a valid backup"); }
+});
+
+// ---------- INIT ----------
+(async function(){
+  $("mDate").value = todayISO();
+  $("modeBadge").textContent = IN_CLAUDE ? "Claude mode" : "iPhone app mode";
+  if(IN_CLAUDE){ $("askBtn").style.display="block"; }
+  else{ $("entryHint").textContent = "Type it like a text message — e.g. \"lunch 12.50, grab home 18\". Amounts and common keywords are recognised automatically. For anything unusual, use Manual entry."; }
+  await loadMonth(viewYM);
+  render();
+})();
+</script>
+</body>
+</html>
