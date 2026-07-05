@@ -83,7 +83,7 @@
   <h1>CFO Daily Tracker</h1>
   <span class="modebadge" id="modeBadge">…</span>
 </div>
-<div class="sub">Discretionary $1,891/mo · Fixed lines $4,928/mo auto-counted · Baseline $6,819/mo</div>
+<div class="sub">Discretionary $2,500/mo (CC $1,500 + Groceries $1,000) · Fixed $3,928/mo auto · Baseline $6,428/mo</div>
 
 <div class="monthnav">
   <button id="prevM" aria-label="Previous month">‹</button>
@@ -117,13 +117,14 @@
 <!-- PACE BAR -->
 <div class="card">
   <div style="display:flex;justify-content:space-between;align-items:center">
-    <span class="lbl">Discretionary spend (credit-card line)</span>
+    <span class="lbl">Discretionary spend (CC + groceries)</span>
     <span class="status ok" id="statusBadge">on track</span>
   </div>
-  <div class="big" id="spentBig">$0 <small>/ $1,891</small></div>
+  <div class="big" id="spentBig">$0 <small>/ $2,500</small></div>
   <div class="bar" id="paceBar"><div class="fill" id="paceFill" style="width:0%"></div><div class="tick" id="paceTick" style="left:0%"></div></div>
   <div class="tickwrap"><span class="ticklbl" id="tickLbl" style="left:0%">pace today</span></div>
   <div class="barmeta"><span id="paceLeft"></span><span id="paceRight"></span></div>
+  <div id="splitRows" style="margin-top:8px;border-top:1px solid var(--line);padding-top:4px"></div>
 </div>
 
 <!-- MONTH TOTALS -->
@@ -166,14 +167,14 @@
 <script>
 const CATS = ["Food & drinks","Groceries","Transport","Shopping","Entertainment","Health","Travel","Other"];
 const FIXED = [
-  {name:"Car + Helper + Household", amt:2400},
+  {name:"Car + Helper", amt:1400},
   {name:"Property loan A", amt:647},
   {name:"Property remittance B", amt:545},
   {name:"Income tax GIRO", amt:878},
   {name:"Utilities / gym", amt:258},
   {name:"Insurance fund", amt:200},
 ];
-const FIXED_TOTAL = 4928, CC_BUDGET = 1891, TOTAL_BUDGET = 6819, SALARY = 9747, SURPLUS_TARGET = 2928;
+const FIXED_TOTAL = 3928, DISC_BUDGET = 2500, CC_LIMIT = 1500, GROC_LIMIT = 1000, TOTAL_BUDGET = 6428, SALARY = 9747, SURPLUS_TARGET = 3319;
 const KEY_PREFIX = "cfo-month:";
 
 let viewYM = ymNow();
@@ -346,23 +347,29 @@ function render(){
   const spent = discSpent();
   const dim = daysInYM(viewYM);
   const day = isCurrentMonth() ? new Date().getDate() : dim;
-  const expected = CC_BUDGET * day / dim;
-  const pctSpent = Math.min(100, spent/CC_BUDGET*100);
-  const pctPace  = Math.min(100, expected/CC_BUDGET*100);
-  $("spentBig").innerHTML = fmt(spent)+' <small>/ $1,891</small>';
+  const expected = DISC_BUDGET * day / dim;
+  const pctSpent = Math.min(100, spent/DISC_BUDGET*100);
+  const pctPace  = Math.min(100, expected/DISC_BUDGET*100);
+  $("spentBig").innerHTML = fmt(spent)+' <small>/ $2,500</small>';
   $("paceFill").style.width = pctSpent+"%";
   $("paceTick").style.left = pctPace+"%";
   $("tickLbl").style.left = Math.min(92,Math.max(8,pctPace))+"%";
   $("tickLbl").textContent = "pace day "+day+": "+fmt(Math.round(expected));
-  $("paceLeft").textContent = fmt(Math.max(0,CC_BUDGET-spent))+" left";
-  $("paceRight").textContent = (spent/CC_BUDGET*100).toFixed(0)+"% used, "+(day/dim*100).toFixed(0)+"% of month";
+  $("paceLeft").textContent = fmt(Math.max(0,DISC_BUDGET-spent))+" left";
+  $("paceRight").textContent = (spent/DISC_BUDGET*100).toFixed(0)+"% used, "+(day/dim*100).toFixed(0)+"% of month";
 
   const bar=$("paceBar"), badge=$("statusBadge");
   let cls="ok", label="on track";
-  if(spent > CC_BUDGET || spent > expected*1.2){ cls="over"; label="overspent"; }
+  if(spent > DISC_BUDGET || spent > expected*1.2){ cls="over"; label="overspent"; }
   else if(spent > expected*1.05){ cls="drift"; label="drifting"; }
   bar.className = "bar"+(cls==="ok"?"":" "+cls);
   badge.className = "status "+cls; badge.textContent = label;
+
+  const grocSpent = data.tx.filter(t=>t.cat==="Groceries").reduce((s,t)=>s+t.amt,0);
+  const ccSpent = spent - grocSpent;
+  $("splitRows").innerHTML = `
+    <div class="totrow"><span>Credit card / general (limit $1,500)</span><span class="v"${ccSpent>CC_LIMIT?' style="color:var(--red)"':''}>${fmt(ccSpent)}</span></div>
+    <div class="totrow"><span>Groceries / household (limit $1,000)</span><span class="v"${grocSpent>GROC_LIMIT?' style="color:var(--red)"':''}>${fmt(grocSpent)}</span></div>`;
 
   $("fixedList").innerHTML = FIXED.map(f=>`
     <div class="fx"><span>${f.name}</span><span class="amt">${fmt(f.amt)}</span></div>`).join("")
@@ -373,10 +380,10 @@ function render(){
   const proj = FIXED_TOTAL + projDisc;
   $("totals").innerHTML = `
     <div class="totrow"><span>Fixed lines (committed)</span><span class="v">${fmt(FIXED_TOTAL)}</span></div>
-    <div class="totrow"><span>Discretionary so far</span><span class="v">${fmt(spent)} / ${fmt(CC_BUDGET)}</span></div>
-    <div class="totrow hl"><span>Total vs $6,819 baseline</span><span class="v">${fmt(totalSpent)}</span></div>
+    <div class="totrow"><span>Discretionary so far</span><span class="v">${fmt(spent)} / ${fmt(DISC_BUDGET)}</span></div>
+    <div class="totrow hl"><span>Total vs $6,428 baseline</span><span class="v">${fmt(totalSpent)}</span></div>
     <div class="totrow"><span>Projected month total</span><span class="v">${fmt(Math.round(proj))}</span></div>
-    <div class="totrow"><span>Projected surplus (target $2,928)</span><span class="v">${fmt(Math.round(SALARY-proj))}</span></div>`;
+    <div class="totrow"><span>Projected surplus (target $3,319)</span><span class="v">${fmt(Math.round(SALARY-proj))}</span></div>`;
 
   const list = [...data.tx].sort((a,b)=> b.d.localeCompare(a.d) || b.id-a.id);
   $("txList").innerHTML = list.length ? list.map(t=>`
@@ -410,9 +417,11 @@ function buildReport(){
   const spent=discSpent(), dim=daysInYM(viewYM), day=isCurrentMonth()?new Date().getDate():dim;
   const byCat={}; data.tx.forEach(t=>byCat[t.cat]=(byCat[t.cat]||0)+t.amt);
   let r = "WEEKLY/MONTHLY AUDIT INPUT — "+ymLabel(viewYM)+" (day "+day+"/"+dim+")\n";
-  r += "Discretionary (credit-card line): "+fmt(spent)+" of $1,891 (pace at day "+day+": "+fmt(Math.round(CC_BUDGET*day/dim))+")\n";
+  const grocR = data.tx.filter(t=>t.cat==="Groceries").reduce((s,t)=>s+t.amt,0);
+  r += "Discretionary total: "+fmt(spent)+" of $2,500 (pace at day "+day+": "+fmt(Math.round(DISC_BUDGET*day/dim))+")\n";
+  r += "Split: credit card/general "+fmt(spent-grocR)+" of $1,500 | groceries/household "+fmt(grocR)+" of $1,000\n";
   r += "By category: "+(Object.keys(byCat).map(c=>c+" "+fmt(byCat[c])).join(", ")||"none")+"\n";
-  r += "Fixed lines: auto-counted $4,928 committed (Car+Helper+Household 2400, Loan A 647, Remittance B 545, tax 878, utilities 258, insurance 200)\n";
+  r += "Fixed lines: auto-counted $3,928 committed (Car+Helper 1400, Loan A 647, Remittance B 545, tax 878, utilities 258, insurance 200)\n";
   r += "Transactions:\n"+(data.tx.map(t=>t.d+" | "+t.cat+" | "+fmt(t.amt)+(t.note?" | "+t.note:"")).join("\n")||"(none)");
   return r;
 }
@@ -438,9 +447,9 @@ $("askBtn").addEventListener("click", async ()=>{
       body: JSON.stringify({
         model:"claude-sonnet-4-6", max_tokens:1000,
         messages:[{role:"user",content:
-`You are a blunt personal CFO doing a weekly quick check. Baseline: discretionary budget $1,891/month (credit-card line), fixed committed lines $4,928/month, total baseline $6,819, salary $9,747 net, surplus target $2,928. Respond in EXACTLY 3 short lines, plain text, no markdown:
-1) Month-to-date discretionary spend vs pace.
-2) Total month picture vs $6,819 baseline and projected surplus.
+`You are a blunt personal CFO doing a weekly quick check. Baseline: discretionary budget $2,500/month (credit card/general capped $1,500 + groceries/household capped $1,000), fixed committed lines $3,928/month, total baseline $6,428, salary $9,747 net, surplus target $3,319. Respond in EXACTLY 3 short lines, plain text, no markdown:
+1) Month-to-date discretionary spend vs pace, noting if either sub-limit is breached.
+2) Total month picture vs $6,428 baseline and projected surplus.
 3) Verdict: ON TRACK / DRIFTING / OVERSPENT, plus one specific action.
 
 Data:
